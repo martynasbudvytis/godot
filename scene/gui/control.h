@@ -60,7 +60,8 @@ public:
 
 	enum GrowDirection {
 		GROW_DIRECTION_BEGIN,
-		GROW_DIRECTION_END
+		GROW_DIRECTION_END,
+		GROW_DIRECTION_BOTH
 	};
 
 	enum FocusMode {
@@ -147,6 +148,11 @@ private:
 
 		Point2 pos_cache;
 		Size2 size_cache;
+		Size2 minimum_size_cache;
+		bool minimum_size_valid;
+
+		Size2 last_minimum_size;
+		bool updating_last_minimum_size;
 
 		float margin[4];
 		float anchor[4];
@@ -163,7 +169,6 @@ private:
 		int h_size_flags;
 		int v_size_flags;
 		float expand;
-		bool pending_min_size_update;
 		Point2 custom_minimum_size;
 
 		bool pass_on_modal_close_click;
@@ -243,6 +248,8 @@ private:
 	void _modal_stack_remove();
 	void _modal_set_prev_focus_owner(ObjectID p_prev);
 
+	void _update_minimum_size_cache();
+
 protected:
 	virtual void add_child_notify(Node *p_child);
 	virtual void remove_child_notify(Node *p_child);
@@ -271,6 +278,8 @@ public:
 		NOTIFICATION_FOCUS_EXIT = 44,
 		NOTIFICATION_THEME_CHANGED = 45,
 		NOTIFICATION_MODAL_CLOSE = 46,
+		NOTIFICATION_SCROLL_BEGIN = 47,
+		NOTIFICATION_SCROLL_END = 48,
 
 	};
 
@@ -279,6 +288,9 @@ public:
 
 	virtual void _edit_set_position(const Point2 &p_position);
 	virtual Point2 _edit_get_position() const;
+
+	virtual void _edit_set_scale(const Size2 &p_scale);
+	virtual Size2 _edit_get_scale() const;
 
 	virtual void _edit_set_rect(const Rect2 &p_edit_rect);
 	virtual Rect2 _edit_get_rect() const;

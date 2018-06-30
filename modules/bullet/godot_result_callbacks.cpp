@@ -63,6 +63,9 @@ bool GodotClosestRayResultCallback::needsCollision(btBroadphaseProxy *proxy0) co
 }
 
 bool GodotAllConvexResultCallback::needsCollision(btBroadphaseProxy *proxy0) const {
+	if (count >= m_resultMax)
+		return false;
+
 	const bool needs = GodotFilterCallback::test_collision_filters(m_collisionFilterGroup, m_collisionFilterMask, proxy0->m_collisionFilterGroup, proxy0->m_collisionFilterMask);
 	if (needs) {
 		btCollisionObject *btObj = static_cast<btCollisionObject *>(proxy0->m_clientObject);
@@ -70,6 +73,7 @@ bool GodotAllConvexResultCallback::needsCollision(btBroadphaseProxy *proxy0) con
 		if (m_exclude->has(gObj->get_self())) {
 			return false;
 		}
+
 		return true;
 	} else {
 		return false;
@@ -87,7 +91,7 @@ btScalar GodotAllConvexResultCallback::addSingleResult(btCollisionWorld::LocalCo
 	result.collider = 0 == result.collider_id ? NULL : ObjectDB::get_instance(result.collider_id);
 
 	++count;
-	return count < m_resultMax;
+	return 1; // not used by bullet
 }
 
 bool GodotKinClosestConvexResultCallback::needsCollision(btBroadphaseProxy *proxy0) const {
@@ -106,7 +110,7 @@ bool GodotKinClosestConvexResultCallback::needsCollision(btBroadphaseProxy *prox
 			if (gObj->getType() == CollisionObjectBullet::TYPE_AREA)
 				return false;
 
-			if (m_self_object->has_collision_exception(gObj))
+			if (m_self_object->has_collision_exception(gObj) || gObj->has_collision_exception(m_self_object))
 				return false;
 		}
 		return true;
@@ -168,10 +172,7 @@ btScalar GodotAllContactResultCallback::addSingleResult(btManifoldPoint &cp, con
 			result.shape = cp.m_index0;
 		}
 
-		if (colObj)
-			result.collider_id = colObj->get_instance_id();
-		else
-			result.collider_id = 0;
+		result.collider_id = colObj->get_instance_id();
 		result.collider = 0 == result.collider_id ? NULL : ObjectDB::get_instance(result.collider_id);
 		result.rid = colObj->get_self();
 		++m_count;
@@ -181,6 +182,9 @@ btScalar GodotAllContactResultCallback::addSingleResult(btManifoldPoint &cp, con
 }
 
 bool GodotContactPairContactResultCallback::needsCollision(btBroadphaseProxy *proxy0) const {
+	if (m_count >= m_resultMax)
+		return false;
+
 	const bool needs = GodotFilterCallback::test_collision_filters(m_collisionFilterGroup, m_collisionFilterMask, proxy0->m_collisionFilterGroup, proxy0->m_collisionFilterMask);
 	if (needs) {
 		btCollisionObject *btObj = static_cast<btCollisionObject *>(proxy0->m_clientObject);
@@ -206,7 +210,7 @@ btScalar GodotContactPairContactResultCallback::addSingleResult(btManifoldPoint 
 
 	++m_count;
 
-	return m_count < m_resultMax;
+	return 1; // Not used by bullet
 }
 
 bool GodotRestInfoContactResultCallback::needsCollision(btBroadphaseProxy *proxy0) const {
@@ -243,29 +247,23 @@ btScalar GodotRestInfoContactResultCallback::addSingleResult(btManifoldPoint &cp
 			m_rest_info_collision_object = colObj0Wrap->getCollisionObject();
 		}
 
-		if (colObj)
-			m_result->collider_id = colObj->get_instance_id();
-		else
-			m_result->collider_id = 0;
+		m_result->collider_id = colObj->get_instance_id();
 		m_result->rid = colObj->get_self();
 
 		m_collided = true;
 	}
 
-	return cp.getDistance();
+	return 1; // Not used by bullet
 }
 
 void GodotDeepPenetrationContactResultCallback::addContactPoint(const btVector3 &normalOnBInWorld, const btVector3 &pointInWorldOnB, btScalar depth) {
 
-	// Has penetration
-	if (m_penetration_distance < ABS(depth)) {
+	if (m_penetration_distance > depth) { // Has penetration?
 
 		bool isSwapped = m_manifoldPtr->getBody0() != m_body0Wrap->getCollisionObject();
-
 		m_penetration_distance = depth;
-		m_pointCollisionObject = (isSwapped ? m_body0Wrap : m_body1Wrap)->getCollisionObject();
-		m_other_compound_shape_index = isSwapped ? m_index1 : m_index0;
+		m_other_compound_shape_index = isSwapped ? m_index0 : m_index1;
 		m_pointNormalWorld = isSwapped ? normalOnBInWorld * -1 : normalOnBInWorld;
-		m_pointWorld = isSwapped ? (pointInWorldOnB + normalOnBInWorld * depth) : pointInWorldOnB;
+		m_pointWorld = isSwapped ? (pointInWorldOnB + (normalOnBInWorld * depth)) : pointInWorldOnB;
 	}
 }

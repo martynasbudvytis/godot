@@ -415,6 +415,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 
 	theme->set_color("font_color", "Label", Color(1, 1, 1));
 	theme->set_color("font_color_shadow", "Label", Color(0, 0, 0, 0));
+	theme->set_color("font_outline_modulate", "Label", Color(1, 1, 1));
 
 	theme->set_constant("shadow_offset_x", "Label", 1 * scale);
 	theme->set_constant("shadow_offset_y", "Label", 1 * scale);
@@ -543,6 +544,11 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 
 	theme->set_icon("updown", "SpinBox", make_icon(spinbox_updown_png));
 
+	//scroll container
+	Ref<StyleBoxEmpty> empty;
+	empty.instance();
+	theme->set_stylebox("bg", "ScrollContainer", empty);
+
 	// WindowDialog
 
 	theme->set_stylebox("panel", "WindowDialog", sb_expand(make_stylebox(popup_window_png, 10, 26, 10, 8), 8, 24, 8, 6));
@@ -582,6 +588,8 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 
 	theme->set_icon("checked", "PopupMenu", make_icon(checked_png));
 	theme->set_icon("unchecked", "PopupMenu", make_icon(unchecked_png));
+	theme->set_icon("radio_checked", "PopupMenu", make_icon(radio_checked_png));
+	theme->set_icon("radio_unchecked", "PopupMenu", make_icon(radio_unchecked_png));
 	theme->set_icon("submenu", "PopupMenu", make_icon(submenu_png));
 
 	theme->set_font("font", "PopupMenu", default_font);
@@ -816,6 +824,12 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	theme->set_color("font_color_selected", "RichTextLabel", font_color_selection);
 	theme->set_color("selection_color", "RichTextLabel", Color(0.1, 0.1, 1, 0.8));
 
+	theme->set_color("font_color_shadow", "RichTextLabel", Color(0, 0, 0, 0));
+
+	theme->set_constant("shadow_offset_x", "RichTextLabel", 1 * scale);
+	theme->set_constant("shadow_offset_y", "RichTextLabel", 1 * scale);
+	theme->set_constant("shadow_as_outline", "RichTextLabel", 0 * scale);
+
 	theme->set_constant("line_separation", "RichTextLabel", 1 * scale);
 	theme->set_constant("table_hseparation", "RichTextLabel", 3 * scale);
 	theme->set_constant("table_vseparation", "RichTextLabel", 3 * scale);
@@ -860,6 +874,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	theme->set_stylebox("bg", "GraphEdit", make_stylebox(tree_bg_png, 4, 4, 4, 5));
 	theme->set_color("grid_minor", "GraphEdit", Color(1, 1, 1, 0.05));
 	theme->set_color("grid_major", "GraphEdit", Color(1, 1, 1, 0.2));
+	theme->set_color("activity", "GraphEdit", Color(1, 1, 1));
 	theme->set_constant("bezier_len_pos", "GraphEdit", 80 * scale);
 	theme->set_constant("bezier_len_neg", "GraphEdit", 160 * scale);
 

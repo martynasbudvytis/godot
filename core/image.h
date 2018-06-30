@@ -217,7 +217,7 @@ public:
 	/**
 	 * Generate a mipmap to an image (creates an image 1/4 the size, with averaging of 4->1)
 	 */
-	Error generate_mipmaps();
+	Error generate_mipmaps(bool p_renormalize = false);
 
 	void clear_mipmaps();
 
@@ -284,6 +284,8 @@ public:
 	void premultiply_alpha();
 	void srgb_to_linear();
 	void normalmap_to_xy();
+	Ref<Image> rgbe_to_srgb();
+	void bumpmap_to_normalmap(float bump_scale = 1.0);
 
 	void blit_rect(const Ref<Image> &p_src, const Rect2 &p_src_rect, const Point2 &p_dest);
 	void blit_rect_mask(const Ref<Image> &p_src, const Ref<Image> &p_mask, const Rect2 &p_src_rect, const Point2 &p_dest);
@@ -320,7 +322,9 @@ public:
 
 	DetectChannels get_detected_channels();
 
+	Color get_pixelv(const Point2 &p_src) const;
 	Color get_pixel(int p_x, int p_y) const;
+	void set_pixelv(const Point2 &p_dest, const Color &p_color);
 	void set_pixel(int p_x, int p_y, const Color &p_color);
 
 	void copy_internals_from(const Ref<Image> &p_image) {

@@ -55,7 +55,7 @@ enum PropertyHint {
 	PROPERTY_HINT_RANGE, ///< hint_text = "min,max,step,slider; //slider is optional"
 	PROPERTY_HINT_EXP_RANGE, ///< hint_text = "min,max,step", exponential edit
 	PROPERTY_HINT_ENUM, ///< hint_text= "val1,val2,val3,etc"
-	PROPERTY_HINT_EXP_EASING, /// exponential easing function (Math::ease)
+	PROPERTY_HINT_EXP_EASING, /// exponential easing function (Math::ease) use "attenuation" hint string to revert (flip h), "full" to also include in/out. (ie: "attenuation,inout")
 	PROPERTY_HINT_LENGTH, ///< hint_text= "length" (as integer)
 	PROPERTY_HINT_SPRITE_FRAME,
 	PROPERTY_HINT_KEY_ACCEL, ///< hint_text= "length" (as integer)
@@ -85,6 +85,7 @@ enum PropertyHint {
 	PROPERTY_HINT_PROPERTY_OF_INSTANCE, ///< a property of an instance
 	PROPERTY_HINT_PROPERTY_OF_SCRIPT, ///< a property of a script & base
 	PROPERTY_HINT_OBJECT_TOO_BIG, ///< object is too big to send
+	PROPERTY_HINT_NODE_PATH_VALID_TYPES,
 	PROPERTY_HINT_MAX,
 	// When updating PropertyHint, also sync the hardcoded list in VisualScriptEditorVariableEdit
 };
@@ -762,15 +763,10 @@ public:
 	static void debug_objects(DebugFunc p_func);
 	static int get_object_count();
 
-#ifdef DEBUG_ENABLED
 	_FORCE_INLINE_ static bool instance_validate(Object *p_ptr) {
 
 		return instance_checks.has(p_ptr);
 	}
-#else
-	_FORCE_INLINE_ static bool instance_validate(Object *p_ptr) { return true; }
-
-#endif
 };
 
 //needed by macros

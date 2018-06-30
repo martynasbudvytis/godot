@@ -125,6 +125,52 @@ public:
 	EditorHelpIndex();
 };
 
+class FindBar : public HBoxContainer {
+
+	GDCLASS(FindBar, HBoxContainer);
+
+	LineEdit *search_text;
+	ToolButton *find_prev;
+	ToolButton *find_next;
+	Label *error_label;
+	TextureButton *hide_button;
+	String prev_search;
+
+	Control *container;
+	HBoxContainer *hbc;
+	VBoxContainer *vbc_search_text;
+
+	RichTextLabel *rich_text_label;
+
+	void _show_search();
+	void _hide_bar();
+
+	void _search_text_changed(const String &p_text);
+	void _search_text_entered(const String &p_text);
+
+	void _update_size();
+
+protected:
+	void _notification(int p_what);
+	void _unhandled_input(const Ref<InputEvent> &p_event);
+
+	bool _search(bool p_search_previous = false);
+
+	static void _bind_methods();
+
+public:
+	void set_error(const String &p_label);
+
+	void set_rich_text_label(RichTextLabel *p_rich_text_label);
+
+	void popup_search();
+
+	bool search_prev();
+	bool search_next();
+
+	FindBar();
+};
+
 class EditorHelp : public VBoxContainer {
 	GDCLASS(EditorHelp, VBoxContainer);
 
@@ -152,6 +198,7 @@ class EditorHelp : public VBoxContainer {
 	Map<String, int> theme_property_line;
 	Map<String, int> constant_line;
 	Map<String, int> enum_line;
+	Map<String, Map<String, int> > enum_values_line;
 	int description_line;
 
 	RichTextLabel *class_desc;
@@ -160,6 +207,7 @@ class EditorHelp : public VBoxContainer {
 
 	ConfirmationDialog *search_dialog;
 	LineEdit *search;
+	FindBar *find_bar;
 
 	String base_path;
 
@@ -193,7 +241,6 @@ class EditorHelp : public VBoxContainer {
 
 	void _request_help(const String &p_string);
 	void _search(const String &p_str);
-	void _search_cbk();
 
 	void _unhandled_key_input(const Ref<InputEvent> &p_ev);
 

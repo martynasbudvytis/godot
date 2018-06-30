@@ -112,13 +112,13 @@ void OptionButton::pressed() {
 
 void OptionButton::add_icon_item(const Ref<Texture> &p_icon, const String &p_label, int p_ID) {
 
-	popup->add_icon_check_item(p_icon, p_label, p_ID);
+	popup->add_icon_radio_check_item(p_icon, p_label, p_ID);
 	if (popup->get_item_count() == 1)
 		select(0);
 }
 void OptionButton::add_item(const String &p_label, int p_ID) {
 
-	popup->add_check_item(p_label, p_ID);
+	popup->add_radio_check_item(p_label, p_ID);
 	if (popup->get_item_count() == 1)
 		select(0);
 }
@@ -297,7 +297,7 @@ void OptionButton::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_focused"), &OptionButton::_focused);
 
 	ClassDB::bind_method(D_METHOD("add_item", "label", "id"), &OptionButton::add_item, DEFVAL(-1));
-	ClassDB::bind_method(D_METHOD("add_icon_item", "texture", "label", "id"), &OptionButton::add_icon_item);
+	ClassDB::bind_method(D_METHOD("add_icon_item", "texture", "label", "id"), &OptionButton::add_icon_item, DEFVAL(-1));
 	ClassDB::bind_method(D_METHOD("set_item_text", "idx", "text"), &OptionButton::set_item_text);
 	ClassDB::bind_method(D_METHOD("set_item_icon", "idx", "texture"), &OptionButton::set_item_icon);
 	ClassDB::bind_method(D_METHOD("set_item_disabled", "idx", "disabled"), &OptionButton::set_item_disabled);

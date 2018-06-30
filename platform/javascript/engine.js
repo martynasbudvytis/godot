@@ -1,3 +1,5 @@
+		exposedLibs['PATH'] = PATH;
+		exposedLibs['FS'] = FS;
 		return Module;
 	},
 };
@@ -8,9 +10,17 @@
 	var DOWNLOAD_ATTEMPTS_MAX = 4;
 
 	var basePath = null;
+	var wasmFilenameExtensionOverride = null;
 	var engineLoadPromise = null;
 
 	var loadingFiles = {};
+
+	function getPathLeaf(path) {
+
+		while (path.endsWith('/'))
+			path = path.slice(0, -1);
+		return path.slice(path.lastIndexOf('/') + 1);
+	}
 
 	function getBasePath(path) {
 
@@ -23,13 +33,14 @@
 
 	function getBaseName(path) {
 
-		path = getBasePath(path);
-		return path.slice(path.lastIndexOf('/') + 1);
+		return getPathLeaf(getBasePath(path));
 	}
 
 	Engine = function Engine() {
 
 		this.rtenv = null;
+
+		var LIBS = {};
 
 		var initPromise = null;
 		var unloadAfterInit = true;
@@ -80,11 +91,11 @@
 			return new Promise(function(resolve, reject) {
 				rtenvProps.onRuntimeInitialized = resolve;
 				rtenvProps.onAbort = reject;
-				rtenvProps.engine.rtenv = Engine.RuntimeEnvironment(rtenvProps);
+				rtenvProps.engine.rtenv = Engine.RuntimeEnvironment(rtenvProps, LIBS);
 			});
 		}
 
-		this.preloadFile = function(pathOrBuffer, bufferFilename) {
+		this.preloadFile = function(pathOrBuffer, destPath) {
 
 			if (pathOrBuffer instanceof ArrayBuffer) {
 				pathOrBuffer = new Uint8Array(pathOrBuffer);
@@ -93,14 +104,14 @@
 			}
 			if (pathOrBuffer instanceof Uint8Array) {
 				preloadedFiles.push({
-					name: bufferFilename,
+					path: destPath,
 					buffer: pathOrBuffer
 				});
 				return Promise.resolve();
 			} else if (typeof pathOrBuffer === 'string') {
 				return loadPromise(pathOrBuffer, preloadProgressTracker).then(function(xhr) {
 					preloadedFiles.push({
-						name: pathOrBuffer,
+						path: destPath || pathOrBuffer,
 						buffer: xhr.response
 					});
 				});
@@ -119,8 +130,17 @@
 		this.startGame = function(mainPack) {
 
 			executableName = getBaseName(mainPack);
-			return Promise.all([this.init(getBasePath(mainPack)), this.preloadFile(mainPack)]).then(
-				Function.prototype.apply.bind(synchronousStart, this, [])
+			var mainArgs = [];
+			if (!getPathLeaf(mainPack).endsWith('.pck')) {
+				mainArgs = ['--main-pack', getPathLeaf(mainPack)];
+			}
+			return Promise.all([
+				// Load from directory,
+				this.init(getBasePath(mainPack)),
+				// ...but write to root where the engine expects it.
+				this.preloadFile(mainPack, getPathLeaf(mainPack))
+			]).then(
+				Function.prototype.apply.bind(synchronousStart, this, mainArgs)
 			);
 		};
 
@@ -146,6 +166,10 @@
 			actualCanvas.style.padding = 0;
 			actualCanvas.style.borderWidth = 0;
 			actualCanvas.style.borderStyle = 'none';
+			// disable right-click context menu
+			actualCanvas.addEventListener('contextmenu', function(ev) {
+				ev.preventDefault();
+			}, false);
 			// until context restoration is implemented
 			actualCanvas.addEventListener('webglcontextlost', function(ev) {
 				alert("WebGL context lost, please reload the page");
@@ -163,7 +187,16 @@
 			this.rtenv.thisProgram = executableName || getBaseName(basePath);
 
 			preloadedFiles.forEach(function(file) {
-				this.rtenv.FS.createDataFile('/', file.name, new Uint8Array(file.buffer), true, true, true);
+				var dir = LIBS.PATH.dirname(file.path);
+				try {
+					LIBS.FS.stat(dir);
+				} catch (e) {
+					if (e.code !== 'ENOENT') {
+						throw e;
+					}
+					LIBS.FS.mkdirTree(dir);
+				}
+				LIBS.FS.createDataFile('/', file.path, new Uint8Array(file.buffer), true, true, true);
 			}, this);
 
 			preloadedFiles = null;
@@ -275,6 +308,14 @@
 		return !!testContext;
 	};
 
+	Engine.setWebAssemblyFilenameExtension = function(override) {
+
+		if (String(override).length === 0) {
+			throw new Error('Invalid WebAssembly filename extension override');
+		}
+		wasmFilenameExtensionOverride = String(override);
+	}
+
 	Engine.load = function(newBasePath) {
 
 		if (newBasePath !== undefined) basePath = getBasePath(newBasePath);
@@ -282,7 +323,7 @@
 			if (typeof WebAssembly !== 'object')
 				return Promise.reject(new Error("Browser doesn't support WebAssembly"));
 			// TODO cache/retrieve module to/from idb
-			engineLoadPromise = loadPromise(basePath + '.wasm').then(function(xhr) {
+			engineLoadPromise = loadPromise(basePath + '.' + (wasmFilenameExtensionOverride || 'wasm')).then(function(xhr) {
 				return xhr.response;
 			});
 			engineLoadPromise = engineLoadPromise.catch(function(err) {

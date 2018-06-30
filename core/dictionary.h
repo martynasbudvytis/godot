@@ -47,6 +47,8 @@ class Dictionary {
 
 public:
 	void get_key_list(List<Variant> *p_keys) const;
+	Variant get_key_at_index(int p_index) const;
+	Variant get_value_at_index(int p_index) const;
 
 	Variant &operator[](const Variant &p_key);
 	const Variant &operator[](const Variant &p_key) const;
@@ -75,7 +77,7 @@ public:
 	Array keys() const;
 	Array values() const;
 
-	Dictionary duplicate() const;
+	Dictionary duplicate(bool p_deep = false) const;
 
 	Dictionary(const Dictionary &p_from);
 	Dictionary();

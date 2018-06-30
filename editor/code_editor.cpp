@@ -212,35 +212,39 @@ void FindReplaceBar::_replace_all() {
 
 	text_edit->begin_complex_operation();
 
-	while (search_next()) {
+	if (search_current()) {
+		do {
+			// replace area
+			Point2i match_from(result_line, result_col);
+			Point2i match_to(result_line, result_col + search_text_len);
 
-		// replace area
-		Point2i match_from(result_line, result_col);
-		Point2i match_to(result_line, result_col + search_text_len);
+			if (match_from < prev_match) {
+				break; // done
+			}
 
-		if (match_from < prev_match)
-			break; // done
+			prev_match = Point2i(result_line, result_col + replace_text.length());
 
-		prev_match = Point2i(result_line, result_col + replace_text.length());
+			text_edit->unfold_line(result_line);
+			text_edit->select(result_line, result_col, result_line, match_to.y);
 
-		text_edit->unfold_line(result_line);
-		text_edit->select(result_line, result_col, result_line, match_to.y);
+			if (selection_enabled && is_selection_only()) {
+				if (match_from < selection_begin || match_to > selection_end) {
+					continue;
+				}
 
-		if (selection_enabled && is_selection_only()) {
+				// replace but adjust selection bounds
+				text_edit->insert_text_at_cursor(replace_text);
+				if (match_to.x == selection_end.x) {
+					selection_end.y += replace_text.length() - search_text_len;
+				}
 
-			if (match_from < selection_begin || match_to > selection_end)
-				continue;
+			} else {
+				// just replace
+				text_edit->insert_text_at_cursor(replace_text);
+			}
 
-			// replace but adjust selection bounds
-			text_edit->insert_text_at_cursor(replace_text);
-			if (match_to.x == selection_end.x)
-				selection_end.y += replace_text.length() - search_text_len;
-		} else {
-			// just replace
-			text_edit->insert_text_at_cursor(replace_text);
-		}
-
-		rc++;
+			rc++;
+		} while (search_next());
 	}
 
 	text_edit->end_complex_operation();
@@ -369,7 +373,6 @@ void FindReplaceBar::_hide_bar() {
 
 void FindReplaceBar::_show_search() {
 
-	hide(); // to update size correctly
 	show();
 	search_text->grab_focus();
 
@@ -477,7 +480,7 @@ void FindReplaceBar::set_text_edit(TextEdit *p_text_edit) {
 
 void FindReplaceBar::_update_size() {
 
-	container->set_custom_minimum_size(Size2(0, hbc->get_size().height));
+	container->set_size(Size2(hbc->get_size().width, 1));
 }
 
 void FindReplaceBar::_bind_methods() {
@@ -503,7 +506,8 @@ void FindReplaceBar::_bind_methods() {
 
 FindReplaceBar::FindReplaceBar() {
 
-	container = memnew(Control);
+	container = memnew(MarginContainer);
+	container->add_constant_override("margin_bottom", 5 * EDSCALE);
 	add_child(container);
 	container->set_clip_contents(true);
 	container->set_h_size_flags(SIZE_EXPAND_FILL);
@@ -588,8 +592,7 @@ FindReplaceBar::FindReplaceBar() {
 	add_child(hide_button);
 	hide_button->set_focus_mode(FOCUS_NONE);
 	hide_button->connect("pressed", this, "_hide_pressed");
-	hide_button->set_expand(true);
-	hide_button->set_stretch_mode(TextureButton::STRETCH_KEEP_CENTERED);
+	hide_button->set_v_size_flags(SIZE_SHRINK_CENTER);
 }
 
 /*** CODE EDITOR ****/
@@ -646,12 +649,12 @@ void CodeTextEditor::_text_editor_gui_input(const Ref<InputEvent> &p_event) {
 }
 
 void CodeTextEditor::_zoom_in() {
-	font_resize_val += EDSCALE;
+	font_resize_val += MAX(EDSCALE, 1.0f);
 	_zoom_changed();
 }
 
 void CodeTextEditor::_zoom_out() {
-	font_resize_val -= EDSCALE;
+	font_resize_val -= MAX(EDSCALE, 1.0f);
 	_zoom_changed();
 }
 
@@ -673,7 +676,20 @@ void CodeTextEditor::_reset_zoom() {
 void CodeTextEditor::_line_col_changed() {
 
 	line_nb->set_text(itos(text_editor->cursor_get_line() + 1));
-	col_nb->set_text(itos(text_editor->cursor_get_column() + 1));
+
+	String line = text_editor->get_line(text_editor->cursor_get_line());
+
+	int positional_column = 0;
+
+	for (int i = 0; i < text_editor->cursor_get_column(); i++) {
+		if (line[i] == '\t') {
+			positional_column += text_editor->get_indent_size(); //tab size
+		} else {
+			positional_column += 1;
+		}
+	}
+
+	col_nb->set_text(itos(positional_column + 1));
 }
 
 void CodeTextEditor::_text_changed() {
@@ -762,6 +778,7 @@ void CodeTextEditor::update_editor_settings() {
 	text_editor->set_draw_breakpoint_gutter(EditorSettings::get_singleton()->get("text_editor/line_numbers/show_breakpoint_gutter"));
 	text_editor->set_hiding_enabled(EditorSettings::get_singleton()->get("text_editor/line_numbers/code_folding"));
 	text_editor->set_draw_fold_gutter(EditorSettings::get_singleton()->get("text_editor/line_numbers/code_folding"));
+	text_editor->set_wrap_enabled(EditorSettings::get_singleton()->get("text_editor/line_numbers/word_wrap"));
 	text_editor->cursor_set_block_mode(EditorSettings::get_singleton()->get("text_editor/cursor/block_caret"));
 	text_editor->set_smooth_scroll_enabled(EditorSettings::get_singleton()->get("text_editor/open_scripts/smooth_scrolling"));
 	text_editor->set_v_scroll_speed(EditorSettings::get_singleton()->get("text_editor/open_scripts/v_scroll_speed"));

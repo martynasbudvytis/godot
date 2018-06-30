@@ -614,6 +614,7 @@ static jmethodID _hideKeyboard = 0;
 static jmethodID _setScreenOrientation = 0;
 static jmethodID _getUniqueID = 0;
 static jmethodID _getSystemDir = 0;
+static jmethodID _getGLESVersionCode = 0;
 static jmethodID _playVideo = 0;
 static jmethodID _isVideoPlaying = 0;
 static jmethodID _pauseVideo = 0;
@@ -683,6 +684,11 @@ static String _get_system_dir(int p_dir) {
 	JNIEnv *env = ThreadAndroid::get_env();
 	jstring s = (jstring)env->CallObjectMethod(godot_io, _getSystemDir, p_dir);
 	return String(env->GetStringUTFChars(s, NULL));
+}
+
+static int _get_gles_version_code() {
+	JNIEnv *env = ThreadAndroid::get_env();
+	return env->CallIntMethod(_godot_instance, _getGLESVersionCode);
 }
 
 static void _hide_vk() {
@@ -764,9 +770,10 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_initialize(JNIEnv *en
 
 		godot_io = gob;
 
-		_on_video_init = env->GetMethodID(cls, "onVideoInit", "(Z)V");
+		_on_video_init = env->GetMethodID(cls, "onVideoInit", "()V");
 		_setKeepScreenOn = env->GetMethodID(cls, "setKeepScreenOn", "(Z)V");
 		_alertDialog = env->GetMethodID(cls, "alert", "(Ljava/lang/String;Ljava/lang/String;)V");
+		_getGLESVersionCode = env->GetMethodID(cls, "getGLESVersionCode", "()I");
 
 		jclass clsio = env->FindClass("org/godotengine/godot/Godot");
 		if (cls) {
@@ -800,16 +807,13 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_initialize(JNIEnv *en
 		AudioDriverAndroid::setup(gob);
 	}
 
-	os_android = new OS_Android(_gfx_init_func, env, _open_uri, _get_user_data_dir, _get_locale, _get_model, _get_screen_dpi, _show_vk, _hide_vk, _get_vk_height, _set_screen_orient, _get_unique_id, _get_system_dir, _play_video, _is_video_playing, _pause_video, _stop_video, _set_keep_screen_on, _alert, p_use_apk_expansion);
+	os_android = new OS_Android(_gfx_init_func, env, _open_uri, _get_user_data_dir, _get_locale, _get_model, _get_screen_dpi, _show_vk, _hide_vk, _get_vk_height, _set_screen_orient, _get_unique_id, _get_system_dir, _get_gles_version_code, _play_video, _is_video_playing, _pause_video, _stop_video, _set_keep_screen_on, _alert, p_use_apk_expansion);
 	os_android->set_need_reload_hooks(p_need_reload_hook);
 
 	char wd[500];
 	getcwd(wd, 500);
 
-	//video driver is determined here, because once initialized, it can't be changed
-	// String vd = ProjectSettings::get_singleton()->get("display/driver");
-
-	env->CallVoidMethod(_godot_instance, _on_video_init, (jboolean) true);
+	env->CallVoidMethod(_godot_instance, _on_video_init);
 }
 
 static void _initialize_java_modules() {
@@ -936,6 +940,9 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_newcontext(JNIEnv *en
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_back(JNIEnv *env, jobject obj) {
+	if (step == 0)
+		return;
+
 	os_android->main_loop_request_go_back();
 }
 
@@ -975,6 +982,9 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_step(JNIEnv *env, job
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_touch(JNIEnv *env, jobject obj, jint ev, jint pointer, jint count, jintArray positions) {
+
+	if (step == 0)
+		return;
 
 	Vector<OS_Android::TouchPos> points;
 	for (int i = 0; i < count; i++) {
@@ -1250,6 +1260,8 @@ static unsigned int android_get_keysym(unsigned int p_code) {
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_joybutton(JNIEnv *env, jobject obj, jint p_device, jint p_button, jboolean p_pressed) {
+	if (step == 0)
+		return;
 
 	OS_Android::JoypadEvent jevent;
 	jevent.device = p_device;
@@ -1261,6 +1273,8 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_joybutton(JNIEnv *env
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_joyaxis(JNIEnv *env, jobject obj, jint p_device, jint p_axis, jfloat p_value) {
+	if (step == 0)
+		return;
 
 	OS_Android::JoypadEvent jevent;
 	jevent.device = p_device;
@@ -1272,6 +1286,9 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_joyaxis(JNIEnv *env, 
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_joyhat(JNIEnv *env, jobject obj, jint p_device, jint p_hat_x, jint p_hat_y) {
+	if (step == 0)
+		return;
+
 	OS_Android::JoypadEvent jevent;
 	jevent.device = p_device;
 	jevent.type = OS_Android::JOY_EVENT_HAT;
@@ -1301,6 +1318,8 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_joyconnectionchanged(
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_key(JNIEnv *env, jobject obj, jint p_scancode, jint p_unicode_char, jboolean p_pressed) {
+	if (step == 0)
+		return;
 
 	Ref<InputEventKey> ievent;
 	ievent.instance();
@@ -1344,14 +1363,18 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_gyroscope(JNIEnv *env
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_focusin(JNIEnv *env, jobject obj) {
 
-	if (os_android && step > 0)
-		os_android->main_loop_focusin();
+	if (step == 0)
+		return;
+
+	os_android->main_loop_focusin();
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_focusout(JNIEnv *env, jobject obj) {
 
-	if (os_android && step > 0)
-		os_android->main_loop_focusout();
+	if (step == 0)
+		return;
+
+	os_android->main_loop_focusout();
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_audio(JNIEnv *env, jobject obj) {

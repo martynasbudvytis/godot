@@ -65,15 +65,6 @@ public:
 #endif
 	};
 
-	enum RPCMode {
-
-		RPC_MODE_DISABLED, //no rpc for this method, calls to this will be blocked (default)
-		RPC_MODE_REMOTE, // using rpc() on it will call method / set property in all other peers
-		RPC_MODE_SYNC, // using rpc() on it will call method / set property in all other peers and locally
-		RPC_MODE_MASTER, // usinc rpc() on it will call method on wherever the master is, be it local or remote
-		RPC_MODE_SLAVE, // usinc rpc() on it will call method for all slaves, be it local or remote
-	};
-
 	struct Comparator {
 
 		bool operator()(const Node *p_a, const Node *p_b) const { return p_b->is_greater_than(p_a); }
@@ -120,8 +111,8 @@ private:
 		Node *pause_owner;
 
 		int network_master;
-		Map<StringName, RPCMode> rpc_methods;
-		Map<StringName, RPCMode> rpc_properties;
+		Map<StringName, MultiplayerAPI::RPCMode> rpc_methods;
+		Map<StringName, MultiplayerAPI::RPCMode> rpc_properties;
 
 		// variables used to properly sort the node when processing, ignored otherwise
 		//should move all the stuff below to bits
@@ -151,6 +142,9 @@ private:
 		NAME_CASING_SNAKE_CASE
 	};
 
+	Ref<MultiplayerAPI> multiplayer;
+
+	void _print_tree_pretty(const String prefix, const bool last);
 	void _print_tree(const Node *p_node);
 
 	Node *_get_node(const NodePath &p_path) const;
@@ -186,6 +180,12 @@ private:
 	friend class SceneTree;
 
 	void _set_tree(SceneTree *p_tree);
+
+#ifdef TOOLS_ENABLED
+	friend class SceneTreeEditor;
+#endif
+	static String invalid_character;
+	static bool _validate_node_name(String &p_name);
 
 protected:
 	void _block() { data.blocked++; }
@@ -228,6 +228,7 @@ public:
 		NOTIFICATION_TRANSLATION_CHANGED = 24,
 		NOTIFICATION_INTERNAL_PROCESS = 25,
 		NOTIFICATION_INTERNAL_PHYSICS_PROCESS = 26,
+		NOTIFICATION_POST_ENTER_TREE = 27,
 
 	};
 
@@ -287,6 +288,7 @@ public:
 	int get_index() const;
 
 	void print_tree();
+	void print_tree_pretty();
 
 	void set_filename(const String &p_filename);
 	String get_filename() const;
@@ -370,10 +372,8 @@ public:
 
 	void force_parent_owned() { data.parent_owned = true; } //hack to avoid duplicate nodes
 
-#ifdef TOOLS_ENABLED
 	void set_import_path(const NodePath &p_import_path); //path used when imported, used by scene editors to keep tracking
 	NodePath get_import_path() const;
-#endif
 
 	bool is_owned_by_parent() const;
 
@@ -395,25 +395,27 @@ public:
 	int get_network_master() const;
 	bool is_network_master() const;
 
-	void rpc_config(const StringName &p_method, RPCMode p_mode); // config a local method for RPC
-	void rset_config(const StringName &p_property, RPCMode p_mode); // config a local property for RPC
+	void rpc_config(const StringName &p_method, MultiplayerAPI::RPCMode p_mode); // config a local method for RPC
+	void rset_config(const StringName &p_property, MultiplayerAPI::RPCMode p_mode); // config a local property for RPC
 
 	void rpc(const StringName &p_method, VARIANT_ARG_LIST); //rpc call, honors RPCMode
 	void rpc_unreliable(const StringName &p_method, VARIANT_ARG_LIST); //rpc call, honors RPCMode
 	void rpc_id(int p_peer_id, const StringName &p_method, VARIANT_ARG_LIST); //rpc call, honors RPCMode
 	void rpc_unreliable_id(int p_peer_id, const StringName &p_method, VARIANT_ARG_LIST); //rpc call, honors RPCMode
 
-	void rpcp(int p_peer_id, bool p_unreliable, const StringName &p_method, const Variant **p_arg, int p_argcount);
-
 	void rset(const StringName &p_property, const Variant &p_value); //remote set call, honors RPCMode
 	void rset_unreliable(const StringName &p_property, const Variant &p_value); //remote set call, honors RPCMode
 	void rset_id(int p_peer_id, const StringName &p_property, const Variant &p_value); //remote set call, honors RPCMode
 	void rset_unreliable_id(int p_peer_id, const StringName &p_property, const Variant &p_value); //remote set call, honors RPCMode
 
+	void rpcp(int p_peer_id, bool p_unreliable, const StringName &p_method, const Variant **p_arg, int p_argcount);
 	void rsetp(int p_peer_id, bool p_unreliable, const StringName &p_property, const Variant &p_value);
 
-	bool can_call_rpc(const StringName &p_method, int p_from) const;
-	bool can_call_rset(const StringName &p_property, int p_from) const;
+	Ref<MultiplayerAPI> get_multiplayer() const;
+	Ref<MultiplayerAPI> get_custom_multiplayer() const;
+	void set_custom_multiplayer(Ref<MultiplayerAPI> p_multiplayer);
+	const Map<StringName, MultiplayerAPI::RPCMode>::Element *get_node_rpc_mode(const StringName &p_method);
+	const Map<StringName, MultiplayerAPI::RPCMode>::Element *get_node_rset_mode(const StringName &p_property);
 
 	Node();
 	~Node();

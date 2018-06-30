@@ -305,7 +305,7 @@ Ref<Script> CSharpLanguage::get_template(const String &p_class_name, const Strin
 							 "    public override void _Ready()\n"
 							 "    {\n"
 							 "        // Called every time the node is added to the scene.\n"
-							 "        // Initialization here\n"
+							 "        // Initialization here.\n"
 							 "        \n"
 							 "    }\n"
 							 "\n"
@@ -446,7 +446,7 @@ String CSharpLanguage::make_function(const String &p_class, const String &p_name
 
 		s += variant_type_to_managed_name(arg.get_slice(":", 1)) + " " + escape_csharp_keyword(arg.get_slice(":", 0));
 	}
-	s += ")\n{\n    // Replace with function body\n}\n";
+	s += ")\n{\n    // Replace with function body.\n}\n";
 
 	return s;
 #else
@@ -782,7 +782,7 @@ void CSharpLanguage::reload_assemblies_if_needed(bool p_soft_reload) {
 	}
 
 	if (Engine::get_singleton()->is_editor_hint()) {
-		EditorNode::get_singleton()->get_property_editor()->update_tree();
+		EditorNode::get_singleton()->get_inspector()->update_tree();
 		NodeDock::singleton->update_lists();
 	}
 }
@@ -1310,21 +1310,27 @@ bool CSharpInstance::refcount_decremented() {
 	return ref_dying;
 }
 
-ScriptInstance::RPCMode CSharpInstance::_member_get_rpc_mode(GDMonoClassMember *p_member) const {
+MultiplayerAPI::RPCMode CSharpInstance::_member_get_rpc_mode(GDMonoClassMember *p_member) const {
 
 	if (p_member->has_attribute(CACHED_CLASS(RemoteAttribute)))
-		return RPC_MODE_REMOTE;
+		return MultiplayerAPI::RPC_MODE_REMOTE;
 	if (p_member->has_attribute(CACHED_CLASS(SyncAttribute)))
-		return RPC_MODE_SYNC;
+		return MultiplayerAPI::RPC_MODE_SYNC;
 	if (p_member->has_attribute(CACHED_CLASS(MasterAttribute)))
-		return RPC_MODE_MASTER;
+		return MultiplayerAPI::RPC_MODE_MASTER;
 	if (p_member->has_attribute(CACHED_CLASS(SlaveAttribute)))
-		return RPC_MODE_SLAVE;
+		return MultiplayerAPI::RPC_MODE_SLAVE;
+	if (p_member->has_attribute(CACHED_CLASS(RemoteSyncAttribute)))
+		return MultiplayerAPI::RPC_MODE_REMOTESYNC;
+	if (p_member->has_attribute(CACHED_CLASS(MasterSyncAttribute)))
+		return MultiplayerAPI::RPC_MODE_MASTERSYNC;
+	if (p_member->has_attribute(CACHED_CLASS(SlaveSyncAttribute)))
+		return MultiplayerAPI::RPC_MODE_SLAVESYNC;
 
-	return RPC_MODE_DISABLED;
+	return MultiplayerAPI::RPC_MODE_DISABLED;
 }
 
-ScriptInstance::RPCMode CSharpInstance::get_rpc_mode(const StringName &p_method) const {
+MultiplayerAPI::RPCMode CSharpInstance::get_rpc_mode(const StringName &p_method) const {
 
 	GDMonoClass *top = script->script_class;
 
@@ -1337,10 +1343,10 @@ ScriptInstance::RPCMode CSharpInstance::get_rpc_mode(const StringName &p_method)
 		top = top->get_parent_class();
 	}
 
-	return RPC_MODE_DISABLED;
+	return MultiplayerAPI::RPC_MODE_DISABLED;
 }
 
-ScriptInstance::RPCMode CSharpInstance::get_rset_mode(const StringName &p_variable) const {
+MultiplayerAPI::RPCMode CSharpInstance::get_rset_mode(const StringName &p_variable) const {
 
 	GDMonoClass *top = script->script_class;
 
@@ -1358,7 +1364,7 @@ ScriptInstance::RPCMode CSharpInstance::get_rset_mode(const StringName &p_variab
 		top = top->get_parent_class();
 	}
 
-	return RPC_MODE_DISABLED;
+	return MultiplayerAPI::RPC_MODE_DISABLED;
 }
 
 void CSharpInstance::notification(int p_notification) {
@@ -1726,6 +1732,12 @@ void CSharpScript::_clear() {
 
 Variant CSharpScript::call(const StringName &p_method, const Variant **p_args, int p_argcount, Variant::CallError &r_error) {
 
+	if (unlikely(GDMono::get_singleton() == NULL)) {
+		// Probably not the best error but eh.
+		r_error.error = Variant::CallError::CALL_ERROR_INSTANCE_IS_NULL;
+		return Variant();
+	}
+
 	GDMonoClass *top = script_class;
 
 	while (top && top != native) {
@@ -1954,8 +1966,7 @@ Variant CSharpScript::_new(const Variant **p_args, int p_argcount, Variant::Call
 
 ScriptInstance *CSharpScript::instance_create(Object *p_this) {
 
-	if (!valid)
-		return NULL;
+	ERR_FAIL_COND_V(!valid, NULL);
 
 	if (!tool && !ScriptServer::is_scripting_enabled()) {
 #ifdef TOOLS_ENABLED
@@ -1967,6 +1978,18 @@ ScriptInstance *CSharpScript::instance_create(Object *p_this) {
 #else
 		return NULL;
 #endif
+	}
+
+	if (!script_class) {
+		if (GDMono::get_singleton()->get_project_assembly() == NULL) {
+			// The project assembly is not loaded
+			ERR_EXPLAIN("Cannot instance script because the project assembly is not loaded. Script: " + get_path());
+			ERR_FAIL_V(NULL);
+		}
+
+		// The project assembly is loaded, but the class could not found
+		ERR_EXPLAIN("Cannot instance script because the class '" + name + "' could not be found. Script: " + get_path());
+		ERR_FAIL_V(NULL);
 	}
 
 	update_signals();
@@ -2045,20 +2068,15 @@ Error CSharpScript::reload(bool p_keep_state) {
 	if (project_assembly) {
 		script_class = project_assembly->get_object_derived_class(name);
 
-		if (!script_class) {
-			ERR_PRINTS("Cannot find class " + name + " for script " + get_path());
-		}
-#ifdef DEBUG_ENABLED
-		else if (OS::get_singleton()->is_stdout_verbose()) {
-			OS::get_singleton()->print(String("Found class " + script_class->get_namespace() + "." +
-											  script_class->get_name() + " for script " + get_path() + "\n")
-											   .utf8());
-		}
-#endif
-
 		valid = script_class != NULL;
 
 		if (script_class) {
+#ifdef DEBUG_ENABLED
+			OS::get_singleton()->print(String("Found class " + script_class->get_namespace() + "." +
+											  script_class->get_name() + " for script " + get_path() + "\n")
+											   .utf8());
+#endif
+
 			tool = script_class->has_attribute(CACHED_CLASS(ToolAttribute));
 
 			native = GDMonoUtils::get_class_native_base(script_class);
@@ -2288,7 +2306,9 @@ RES ResourceFormatLoaderCSharpScript::load(const String &p_path, const String &p
 	CRASH_COND(mono_domain_get() == NULL);
 #endif
 
-#else
+#endif
+
+#ifdef TOOLS_ENABLED
 	if (Engine::get_singleton()->is_editor_hint() && mono_domain_get() == NULL) {
 
 		CRASH_COND(Thread::get_caller_id() == Thread::get_main_id());
@@ -2297,14 +2317,20 @@ RES ResourceFormatLoaderCSharpScript::load(const String &p_path, const String &p
 		// because this may be called by one of the editor's worker threads.
 		// Attach this thread temporarily to reload the script.
 
-		MonoThread *mono_thread = mono_thread_attach(SCRIPTS_DOMAIN);
-		CRASH_COND(mono_thread == NULL);
-		script->reload();
-		mono_thread_detach(mono_thread);
+		if (SCRIPTS_DOMAIN) {
+			MonoThread *mono_thread = mono_thread_attach(SCRIPTS_DOMAIN);
+			CRASH_COND(mono_thread == NULL);
+			script->reload();
+			mono_thread_detach(mono_thread);
+		}
 
-	} else // just reload it normally
+	} else { // just reload it normally
 #endif
-	script->reload();
+		script->reload();
+
+#ifdef TOOLS_ENABLED
+	}
+#endif
 
 	if (r_error)
 		*r_error = OK;

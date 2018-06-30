@@ -101,6 +101,18 @@ int AudioDriver::get_total_channels_by_speaker_mode(AudioDriver::SpeakerMode p_m
 	ERR_FAIL_V(2);
 }
 
+Array AudioDriver::get_device_list() {
+	Array list;
+
+	list.push_back("Default");
+
+	return list;
+}
+
+String AudioDriver::get_device() {
+	return "Default";
+}
+
 AudioDriver::AudioDriver() {
 
 	_last_mix_time = 0;
@@ -222,29 +234,6 @@ void AudioServer::_driver_process(int p_frames, int32_t *p_buffer) {
 		todo -= to_copy;
 		to_mix -= to_copy;
 	}
-
-#ifdef DEBUG_ENABLED
-	if (OS::get_singleton() && OS::get_singleton()->is_stdout_verbose()) {
-		static uint64_t first_ticks = 0;
-		static uint64_t last_ticks = 0;
-		static uint64_t ticks = 0;
-		static int count = 0;
-		static int total = 0;
-
-		ticks = OS::get_singleton()->get_ticks_msec();
-		if ((ticks - first_ticks) > 10 * 1000 && count > 0) {
-			print_line("Audio Driver " + String(AudioDriver::get_singleton()->get_name()) + " average latency: " + itos(total / count) + "ms (frame=" + itos(p_frames) + ")");
-			first_ticks = ticks;
-			total = 0;
-			count = 0;
-		}
-
-		total += ticks - last_ticks;
-		count++;
-
-		last_ticks = ticks;
-	}
-#endif
 }
 
 void AudioServer::_mix_step() {
@@ -927,9 +916,6 @@ void AudioServer::finish() {
 	buses.clear();
 }
 
-void AudioServer::update() {
-}
-
 /* MISC config */
 
 void AudioServer::lock() {
@@ -1108,6 +1094,21 @@ Ref<AudioBusLayout> AudioServer::generate_bus_layout() const {
 	return state;
 }
 
+Array AudioServer::get_device_list() {
+
+	return AudioDriver::get_singleton()->get_device_list();
+}
+
+String AudioServer::get_device() {
+
+	return AudioDriver::get_singleton()->get_device();
+}
+
+void AudioServer::set_device(String device) {
+
+	AudioDriver::get_singleton()->set_device(device);
+}
+
 void AudioServer::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_bus_count", "amount"), &AudioServer::set_bus_count);
@@ -1154,6 +1155,9 @@ void AudioServer::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_speaker_mode"), &AudioServer::get_speaker_mode);
 	ClassDB::bind_method(D_METHOD("get_mix_rate"), &AudioServer::get_mix_rate);
+	ClassDB::bind_method(D_METHOD("get_device_list"), &AudioServer::get_device_list);
+	ClassDB::bind_method(D_METHOD("get_device"), &AudioServer::get_device);
+	ClassDB::bind_method(D_METHOD("set_device"), &AudioServer::set_device);
 
 	ClassDB::bind_method(D_METHOD("set_bus_layout", "bus_layout"), &AudioServer::set_bus_layout);
 	ClassDB::bind_method(D_METHOD("generate_bus_layout"), &AudioServer::generate_bus_layout);

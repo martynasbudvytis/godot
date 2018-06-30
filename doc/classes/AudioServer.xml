@@ -7,7 +7,7 @@
 		AudioServer is a low level server interface for audio access. It is in charge of creating sample data (playable audio) as well as its playback via a voice interface.
 	</description>
 	<tutorials>
-		http://docs.godotengine.org/en/3.0/tutorials/audio/audio_buses.html
+		<link>http://docs.godotengine.org/en/3.0/tutorials/audio/audio_buses.html</link>
 	</tutorials>
 	<demos>
 	</demos>
@@ -124,6 +124,18 @@
 			</argument>
 			<description>
 				Returns the volume of the bus at index [code]bus_idx[/code] in dB.
+			</description>
+		</method>
+		<method name="get_device">
+			<return type="String">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="get_device_list">
+			<return type="Array">
+			</return>
+			<description>
 			</description>
 		</method>
 		<method name="get_mix_rate" qualifiers="const">
@@ -311,6 +323,14 @@
 			</argument>
 			<description>
 				Sets the volume of the bus at index [code]bus_idx[/code] to [code]volume_db[/code].
+			</description>
+		</method>
+		<method name="set_device">
+			<return type="void">
+			</return>
+			<argument index="0" name="arg0" type="String">
+			</argument>
+			<description>
 			</description>
 		</method>
 		<method name="swap_bus_effects">

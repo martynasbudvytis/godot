@@ -35,6 +35,7 @@
 #include "editor/editor_plugin.h"
 
 #include "scene/2d/tile_map.h"
+#include "scene/gui/check_box.h"
 #include "scene/gui/label.h"
 #include "scene/gui/line_edit.h"
 #include "scene/gui/menu_button.h"
@@ -61,6 +62,7 @@ class TileMapEditor : public VBoxContainer {
 		TOOL_BUCKET,
 		TOOL_PICKING,
 		TOOL_DUPLICATING,
+		TOOL_MOVING
 	};
 
 	enum Options {
@@ -72,9 +74,12 @@ class TileMapEditor : public VBoxContainer {
 		OPTION_ERASE_SELECTION,
 		OPTION_PAINTING,
 		OPTION_FIX_INVALID,
+		OPTION_MOVE
 	};
 
 	TileMap *node;
+	bool manual_autotile;
+	Vector2 manual_position;
 
 	EditorNode *editor;
 	UndoRedo *undo_redo;
@@ -83,6 +88,7 @@ class TileMapEditor : public VBoxContainer {
 	LineEdit *search_box;
 	HSlider *size_slider;
 	ItemList *palette;
+	ItemList *manual_palette;
 
 	HBoxContainer *toolbar;
 
@@ -95,6 +101,7 @@ class TileMapEditor : public VBoxContainer {
 	ToolButton *rotate_90;
 	ToolButton *rotate_180;
 	ToolButton *rotate_270;
+	CheckBox *manual_button;
 
 	Tool tool;
 
@@ -122,13 +129,13 @@ class TileMapEditor : public VBoxContainer {
 		bool xf;
 		bool yf;
 		bool tr;
+		Vector2 ac;
 
-		CellOp() {
-			idx = -1;
-			xf = false;
-			yf = false;
-			tr = false;
-		}
+		CellOp() :
+				idx(TileMap::INVALID_CELL),
+				xf(false),
+				yf(false),
+				tr(false) {}
 	};
 
 	Map<Point2i, CellOp> paint_undo;
@@ -139,11 +146,17 @@ class TileMapEditor : public VBoxContainer {
 		bool flip_h;
 		bool flip_v;
 		bool transpose;
-		int auto_x;
-		int auto_y;
+
+		TileData() :
+				cell(TileMap::INVALID_CELL),
+				flip_h(false),
+				flip_v(false),
+				transpose(false) {}
 	};
 
 	List<TileData> copydata;
+
+	Map<Point2i, CellOp> undo_data;
 
 	void _pick_tile(const Point2 &p_pos);
 
@@ -163,12 +176,17 @@ class TileMapEditor : public VBoxContainer {
 	int get_selected_tile() const;
 	void set_selected_tile(int p_tile);
 
+	void _manual_toggled(bool p_enabled);
 	void _text_entered(const String &p_text);
 	void _text_changed(const String &p_text);
 	void _sbox_input(const Ref<InputEvent> &p_ie);
 	void _update_palette();
 	void _menu_option(int p_option);
+	void _palette_selected(int index);
 
+	void _start_undo(const String &p_action);
+	void _finish_undo();
+	void _create_set_cell_undo(const Vector2 &p_vec, const CellOp &p_cell_old, const CellOp &p_cell_new);
 	void _set_cell(const Point2i &p_pos, int p_value, bool p_flip_h = false, bool p_flip_v = false, bool p_transpose = false);
 
 	void _canvas_mouse_enter();

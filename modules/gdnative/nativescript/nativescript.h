@@ -36,6 +36,7 @@
 #include "core/self_list.h"
 #include "io/resource_loader.h"
 #include "io/resource_saver.h"
+#include "oa_hash_map.h"
 #include "ordered_hash_map.h"
 #include "os/thread_safe.h"
 #include "scene/main/node.h"
@@ -195,8 +196,8 @@ public:
 	virtual Variant call(const StringName &p_method, const Variant **p_args, int p_argcount, Variant::CallError &r_error);
 	virtual void notification(int p_notification);
 	virtual Ref<Script> get_script() const;
-	virtual RPCMode get_rpc_mode(const StringName &p_method) const;
-	virtual RPCMode get_rset_mode(const StringName &p_variable) const;
+	virtual MultiplayerAPI::RPCMode get_rpc_mode(const StringName &p_method) const;
+	virtual MultiplayerAPI::RPCMode get_rset_mode(const StringName &p_variable) const;
 	virtual ScriptLanguage *get_language();
 
 	virtual void call_multilevel(const StringName &p_method, const Variant **p_args, int p_argcount);
@@ -239,6 +240,8 @@ private:
 
 	Vector<Pair<bool, godot_instance_binding_functions> > binding_functions;
 	Set<Vector<void *> *> binding_instances;
+
+	Map<int, HashMap<StringName, const void *> > global_type_tags;
 
 public:
 	// These two maps must only be touched on the main thread
@@ -323,6 +326,9 @@ public:
 
 	virtual void *alloc_instance_binding_data(Object *p_object);
 	virtual void free_instance_binding_data(void *p_data);
+
+	void set_global_type_tag(int p_idx, StringName p_class_name, const void *p_type_tag);
+	const void *get_global_type_tag(int p_idx, StringName p_class_name) const;
 };
 
 inline NativeScriptDesc *NativeScript::get_script_desc() const {

@@ -50,6 +50,7 @@
 #include "dependency_editor.h"
 #include "editor_dir_dialog.h"
 #include "editor_file_system.h"
+#include "script_create_dialog.h"
 
 class EditorNode;
 
@@ -75,6 +76,7 @@ private:
 		FILE_REIMPORT,
 		FILE_INFO,
 		FILE_NEW_FOLDER,
+		FILE_NEW_SCRIPT,
 		FILE_SHOW_IN_EXPLORER,
 		FILE_COPY_PATH
 	};
@@ -126,6 +128,7 @@ private:
 	LineEdit *duplicate_dialog_text;
 	ConfirmationDialog *make_dir_dialog;
 	LineEdit *make_dir_dialog_text;
+	ScriptCreateDialog *make_script_dialog_text;
 
 	class FileOrFolder {
 	public:
@@ -176,12 +179,13 @@ private:
 	void _file_selected();
 	void _dir_selected();
 
-	void _get_all_files_in_dir(EditorFileSystemDirectory *efsd, Vector<String> &files) const;
+	void _get_all_items_in_dir(EditorFileSystemDirectory *efsd, Vector<String> &files, Vector<String> &folders) const;
 	void _find_remaps(EditorFileSystemDirectory *efsd, const Map<String, String> &renames, Vector<String> &to_remaps) const;
-	void _try_move_item(const FileOrFolder &p_item, const String &p_new_path, Map<String, String> &p_renames) const;
+	void _try_move_item(const FileOrFolder &p_item, const String &p_new_path, Map<String, String> &p_file_renames, Map<String, String> &p_folder_renames) const;
 	void _try_duplicate_item(const FileOrFolder &p_item, const String &p_new_path) const;
 	void _update_dependencies_after_move(const Map<String, String> &p_renames) const;
 	void _update_resource_paths_after_move(const Map<String, String> &p_renames) const;
+	void _update_favorite_dirs_list_after_move(const Map<String, String> &p_renames) const;
 
 	void _make_dir_confirm();
 	void _rename_operation_confirm();

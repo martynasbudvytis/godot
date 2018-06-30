@@ -94,6 +94,7 @@ void CanvasItemMaterial::_update_shader() {
 		case BLEND_MODE_SUB: code += "blend_sub"; break;
 		case BLEND_MODE_MUL: code += "blend_mul"; break;
 		case BLEND_MODE_PREMULT_ALPHA: code += "blend_premul_alpha"; break;
+		case BLEND_MODE_DISABLED: code += "blend_disabled"; break;
 	}
 
 	switch (light_mode) {
@@ -244,6 +245,14 @@ CanvasItemMaterial::~CanvasItemMaterial() {
 }
 
 ///////////////////////////////////////////////////////////////////
+
+bool CanvasItem::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
+	if (_edit_use_rect()) {
+		return _edit_get_rect().has_point(p_point);
+	} else {
+		return p_point.length() < p_tolerance;
+	}
+}
 
 bool CanvasItem::is_visible_in_tree() const {
 
@@ -412,7 +421,7 @@ void CanvasItem::_enter_canvas() {
 
 		RID canvas;
 		if (canvas_layer)
-			canvas = canvas_layer->get_world_2d()->get_canvas();
+			canvas = canvas_layer->get_canvas();
 		else
 			canvas = get_viewport()->find_world_2d()->get_canvas();
 
@@ -821,6 +830,12 @@ float CanvasItem::draw_char(const Ref<Font> &p_font, const Point2 &p_pos, const 
 
 void CanvasItem::_notify_transform(CanvasItem *p_node) {
 
+	/* This check exists to avoid re-propagating the transform
+	 * notification down the tree on dirty nodes. It provides
+	 * optimization by avoiding redundancy (nodes are dirty, will get the
+	 * notification anyway).
+	 */
+
 	if (/*p_node->xform_change.in_list() &&*/ p_node->global_invalid) {
 		return; //nothing to do
 	}
@@ -854,7 +869,7 @@ RID CanvasItem::get_canvas() const {
 	ERR_FAIL_COND_V(!is_inside_tree(), RID());
 
 	if (canvas_layer)
-		return canvas_layer->get_world_2d()->get_canvas();
+		return canvas_layer->get_canvas();
 	else
 		return get_viewport()->find_world_2d()->get_canvas();
 }
@@ -875,9 +890,7 @@ Ref<World2D> CanvasItem::get_world_2d() const {
 
 	CanvasItem *tl = get_toplevel();
 
-	if (tl->canvas_layer) {
-		return tl->canvas_layer->get_world_2d();
-	} else if (tl->get_viewport()) {
+	if (tl->get_viewport()) {
 		return tl->get_viewport()->find_world_2d();
 	} else {
 		return Ref<World2D>();
@@ -976,7 +989,8 @@ void CanvasItem::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("_edit_set_position", "position"), &CanvasItem::_edit_set_position);
 	ClassDB::bind_method(D_METHOD("_edit_get_position"), &CanvasItem::_edit_get_position);
-	ClassDB::bind_method(D_METHOD("_edit_use_position"), &CanvasItem::_edit_use_position);
+	ClassDB::bind_method(D_METHOD("_edit_set_scale", "scale"), &CanvasItem::_edit_set_scale);
+	ClassDB::bind_method(D_METHOD("_edit_get_scale"), &CanvasItem::_edit_get_scale);
 	ClassDB::bind_method(D_METHOD("_edit_set_rect", "rect"), &CanvasItem::_edit_set_rect);
 	ClassDB::bind_method(D_METHOD("_edit_get_rect"), &CanvasItem::_edit_get_rect);
 	ClassDB::bind_method(D_METHOD("_edit_use_rect"), &CanvasItem::_edit_use_rect);
@@ -1091,6 +1105,7 @@ void CanvasItem::_bind_methods() {
 	BIND_ENUM_CONSTANT(BLEND_MODE_SUB);
 	BIND_ENUM_CONSTANT(BLEND_MODE_MUL);
 	BIND_ENUM_CONSTANT(BLEND_MODE_PREMULT_ALPHA);
+	BIND_ENUM_CONSTANT(BLEND_MODE_DISABLED);
 
 	BIND_CONSTANT(NOTIFICATION_TRANSFORM_CHANGED);
 	BIND_CONSTANT(NOTIFICATION_DRAW);

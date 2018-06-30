@@ -61,7 +61,7 @@ void EditorSettingsDialog::_settings_property_edited(const String &p_name) {
 	if (full_name == "text_editor/theme/color_theme") {
 		property_editor->get_property_editor()->update_tree();
 	} else if (full_name == "interface/theme/accent_color" || full_name == "interface/theme/base_color" || full_name == "interface/theme/contrast") {
-		EditorSettings::get_singleton()->set_manually("interface/theme/preset", 6); // set preset to Custom
+		EditorSettings::get_singleton()->set_manually("interface/theme/preset", "Custom"); // set preset to Custom
 	} else if (full_name.begins_with("text_editor/highlighting")) {
 		EditorSettings::get_singleton()->set_manually("text_editor/theme/color_theme", "Custom");
 	}
@@ -101,7 +101,14 @@ void EditorSettingsDialog::popup_edit_settings() {
 	if (EditorSettings::get_singleton()->has_setting("interface/dialogs/editor_settings_bounds")) {
 		popup(EditorSettings::get_singleton()->get("interface/dialogs/editor_settings_bounds"));
 	} else {
-		popup_centered_ratio(0.7);
+
+		Size2 popup_size = Size2(900, 700) * editor_get_scale();
+		Size2 window_size = get_viewport_rect().size;
+
+		popup_size.x = MIN(window_size.x * 0.8, popup_size.x);
+		popup_size.y = MIN(window_size.y * 0.8, popup_size.y);
+
+		popup_centered(popup_size);
 	}
 
 	_focus_current_search_box();
@@ -199,6 +206,14 @@ void EditorSettingsDialog::_update_icons() {
 
 void EditorSettingsDialog::_update_shortcuts() {
 
+	Map<String, bool> collapsed;
+
+	if (shortcuts->get_root() && shortcuts->get_root()->get_children()) {
+		for (TreeItem *item = shortcuts->get_root()->get_children(); item; item = item->get_next()) {
+			collapsed[item->get_text(0)] = item->is_collapsed();
+		}
+	}
+
 	shortcuts->clear();
 
 	List<String> slist;
@@ -223,7 +238,13 @@ void EditorSettingsDialog::_update_shortcuts() {
 			section = sections[section_name];
 		} else {
 			section = shortcuts->create_item(root);
-			section->set_text(0, section_name.capitalize());
+
+			String item_name = section_name.capitalize();
+			section->set_text(0, item_name);
+
+			if (collapsed.has(item_name)) {
+				section->set_collapsed(collapsed[item_name]);
+			}
 
 			sections[section_name] = section;
 			section->set_custom_bg_color(0, get_color("prop_subsection", "Editor"));
@@ -263,7 +284,7 @@ void EditorSettingsDialog::_shortcut_button_pressed(Object *p_item, int p_column
 	Ref<ShortCut> sc = EditorSettings::get_singleton()->get_shortcut(item);
 
 	if (p_idx == 0) {
-		press_a_key_label->set_text(TTR("Press a Key.."));
+		press_a_key_label->set_text(TTR("Press a Key..."));
 		last_wait_for_key = Ref<InputEventKey>();
 		press_a_key->popup_centered(Size2(250, 80) * EDSCALE);
 		press_a_key->grab_focus();
@@ -457,7 +478,7 @@ EditorSettingsDialog::EditorSettingsDialog() {
 	add_child(press_a_key);
 
 	Label *l = memnew(Label);
-	l->set_text(TTR("Press a Key.."));
+	l->set_text(TTR("Press a Key..."));
 	l->set_anchors_and_margins_preset(Control::PRESET_WIDE);
 	l->set_align(Label::ALIGN_CENTER);
 	l->set_margin(MARGIN_TOP, 20);

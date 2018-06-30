@@ -863,6 +863,7 @@ Error EditorSceneImporterGLTF::_parse_meshes(GLTFState &state) {
 		ERR_FAIL_COND_V(!d.has("primitives"), ERR_PARSE_ERROR);
 
 		Array primitives = d["primitives"];
+		Dictionary extras = d.has("extras") ? (Dictionary)d["extras"] : Dictionary();
 
 		for (int j = 0; j < primitives.size(); j++) {
 
@@ -1000,8 +1001,10 @@ Error EditorSceneImporterGLTF::_parse_meshes(GLTFState &state) {
 				Array targets = p["targets"];
 
 				if (j == 0) {
+					Array target_names = extras.has("targetNames") ? (Array)extras["targetNames"] : Array();
 					for (int k = 0; k < targets.size(); k++) {
-						mesh.mesh->add_blend_shape(String("morph_") + itos(k));
+						String name = k < target_names.size() ? (String)target_names[k] : String("morph_") + itos(k);
+						mesh.mesh->add_blend_shape(name);
 					}
 				}
 
@@ -1163,7 +1166,7 @@ Error EditorSceneImporterGLTF::_parse_images(GLTFState &state, const String &p_b
 			continue;
 		}
 
-		if (mimetype.findn("jpg") != -1) {
+		if (mimetype.findn("jpeg") != -1) {
 			//is a jpg
 			Ref<Image> img = Image::_jpg_mem_loader_func(data_ptr, data_size);
 
@@ -1253,12 +1256,15 @@ Error EditorSceneImporterGLTF::_parse_materials(GLTFState &state) {
 			}
 
 			if (mr.has("metallicFactor")) {
-
 				material->set_metallic(mr["metallicFactor"]);
+			} else {
+				material->set_metallic(1.0);
 			}
-			if (mr.has("roughnessFactor")) {
 
+			if (mr.has("roughnessFactor")) {
 				material->set_roughness(mr["roughnessFactor"]);
+			} else {
+				material->set_roughness(1.0);
 			}
 
 			if (mr.has("metallicRoughnessTexture")) {
@@ -1732,14 +1738,19 @@ void EditorSceneImporterGLTF::_generate_bone(GLTFState &state, int p_node, Vecto
 	for (int i = 0; i < n->joints.size(); i++) {
 		ERR_FAIL_COND(n->joints[i].skin < 0);
 
-		int bone_index = skeletons[n->joints[i].skin]->get_bone_count();
-		skeletons[n->joints[i].skin]->add_bone(n->name);
-		if (p_parent_bones.size()) {
-			skeletons[n->joints[i].skin]->set_bone_parent(bone_index, p_parent_bones[i]);
-		}
-		skeletons[n->joints[i].skin]->set_bone_rest(bone_index, state.skins[n->joints[i].skin].bones[n->joints[i].bone].inverse_bind.affine_inverse());
+		int bone_index = n->joints[i].bone;
 
-		n->godot_nodes.push_back(skeletons[n->joints[i].skin]);
+		Skeleton *s = skeletons[n->joints[i].skin];
+		while (s->get_bone_count() <= bone_index) {
+			s->add_bone("Bone " + itos(s->get_bone_count()));
+		}
+
+		if (p_parent_bones.size()) {
+			s->set_bone_parent(bone_index, p_parent_bones[i]);
+		}
+		s->set_bone_rest(bone_index, state.skins[n->joints[i].skin].bones[n->joints[i].bone].inverse_bind.affine_inverse());
+
+		n->godot_nodes.push_back(s);
 		n->joints[i].godot_bone_index = bone_index;
 		parent_bones.push_back(bone_index);
 	}
@@ -1978,8 +1989,7 @@ void EditorSceneImporterGLTF::_import_animation(GLTFState &state, AnimationPlaye
 						int bone = node->joints[i].godot_bone_index;
 						xform = skeleton->get_bone_rest(bone).affine_inverse() * xform;
 
-						rot = xform.basis;
-						rot.normalize();
+						rot = xform.basis.get_rotation_quat();
 						scale = xform.basis.get_scale();
 						pos = xform.origin;
 					}

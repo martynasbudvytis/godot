@@ -137,6 +137,8 @@ public:
 	String insert(int p_at_pos, const String &p_string) const;
 	String pad_decimals(int p_digits) const;
 	String pad_zeros(int p_digits) const;
+	String trim_prefix(const String &p_prefix) const;
+	String trim_suffix(const String &p_suffix) const;
 	String lpad(int min_length, const String &character = " ") const;
 	String rpad(int min_length, const String &character = " ") const;
 	String sprintf(const Array &values, bool *error) const;
@@ -170,6 +172,7 @@ public:
 	String get_slicec(CharType p_splitter, int p_slice) const;
 
 	Vector<String> split(const String &p_splitter, bool p_allow_empty = true, int p_maxsplit = 0) const;
+	Vector<String> rsplit(const String &p_splitter, bool p_allow_empty = true, int p_maxsplit = 0) const;
 	Vector<String> split_spaces() const;
 	Vector<float> split_floats(const String &p_splitter, bool p_allow_empty = true) const;
 	Vector<float> split_floats_mk(const Vector<String> &p_splitters, bool p_allow_empty = true) const;
@@ -188,6 +191,8 @@ public:
 	String dedent() const;
 	String strip_edges(bool left = true, bool right = true) const;
 	String strip_escapes() const;
+	String lstrip(const Vector<CharType> &p_chars) const;
+	String rstrip(const Vector<CharType> &p_chars) const;
 	String get_extension() const;
 	String get_basename() const;
 	String plus_file(const String &p_file) const;

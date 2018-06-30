@@ -254,11 +254,13 @@ HashMap<StringName, StringName, StringNameHasher> ClassDB::compat_classes;
 
 ClassDB::ClassInfo::ClassInfo() {
 
+	api = API_NONE;
 	creation_func = NULL;
 	inherits_ptr = NULL;
 	disabled = false;
 	exposed = false;
 }
+
 ClassDB::ClassInfo::~ClassInfo() {
 }
 
@@ -355,7 +357,7 @@ uint64_t ClassDB::get_api_hash(APIType p_api) {
 
 		ClassInfo *t = classes.getptr(E->get());
 		ERR_FAIL_COND_V(!t, 0);
-		if (t->api != p_api)
+		if (t->api != p_api || !t->exposed)
 			continue;
 		hash = hash_djb2_one_64(t->name.hash(), hash);
 		hash = hash_djb2_one_64(t->inherits.hash(), hash);
@@ -651,7 +653,6 @@ void ClassDB::bind_integer_constant(const StringName &p_class, const StringName 
 	}
 
 	type->constant_map[p_name] = p_constant;
-#ifdef DEBUG_METHODS_ENABLED
 
 	String enum_name = p_enum;
 	if (enum_name != String()) {
@@ -670,6 +671,7 @@ void ClassDB::bind_integer_constant(const StringName &p_class, const StringName 
 		}
 	}
 
+#ifdef DEBUG_METHODS_ENABLED
 	type->constant_order.push_back(p_name);
 #endif
 }
@@ -725,7 +727,6 @@ int ClassDB::get_integer_constant(const StringName &p_class, const StringName &p
 	return 0;
 }
 
-#ifdef DEBUG_METHODS_ENABLED
 StringName ClassDB::get_integer_constant_enum(const StringName &p_class, const StringName &p_name, bool p_no_inheritance) {
 
 	OBJTYPE_RLOCK;
@@ -794,7 +795,6 @@ void ClassDB::get_enum_constants(const StringName &p_class, const StringName &p_
 		type = type->inherits_ptr;
 	}
 }
-#endif
 
 void ClassDB::add_signal(StringName p_class, const MethodInfo &p_signal) {
 

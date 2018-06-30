@@ -87,7 +87,14 @@ void CreateDialog::popup_create(bool p_dont_clear, bool p_replace_mode) {
 	if (EditorSettings::get_singleton()->has_setting("interface/dialogs/create_new_node_bounds")) {
 		popup(EditorSettings::get_singleton()->get("interface/dialogs/create_new_node_bounds"));
 	} else {
-		popup_centered_ratio();
+
+		Size2 popup_size = Size2(900, 700) * editor_get_scale();
+		Size2 window_size = get_viewport_rect().size;
+
+		popup_size.x = MIN(window_size.x * 0.8, popup_size.x);
+		popup_size.y = MIN(window_size.y * 0.8, popup_size.y);
+
+		popup_centered(popup_size);
 	}
 
 	if (p_dont_clear) {
@@ -433,26 +440,7 @@ Object *CreateDialog::instance_selected() {
 			custom = md;
 
 		if (custom != String()) {
-			if (EditorNode::get_editor_data().get_custom_types().has(custom)) {
-
-				for (int i = 0; i < EditorNode::get_editor_data().get_custom_types()[custom].size(); i++) {
-					if (EditorNode::get_editor_data().get_custom_types()[custom][i].name == selected->get_text(0)) {
-						Ref<Texture> icon = EditorNode::get_editor_data().get_custom_types()[custom][i].icon;
-						Ref<Script> script = EditorNode::get_editor_data().get_custom_types()[custom][i].script;
-						String name = selected->get_text(0);
-
-						Object *ob = ClassDB::instance(custom);
-						ERR_FAIL_COND_V(!ob, NULL);
-						if (ob->is_class("Node")) {
-							ob->call("set_name", name);
-						}
-						ob->set_script(script.get_ref_ptr());
-						if (icon.is_valid())
-							ob->set_meta("_editor_icon", icon);
-						return ob;
-					}
-				}
-			}
+			return EditorNode::get_editor_data().instance_custom_type(selected->get_text(0), custom);
 		} else {
 			return ClassDB::instance(selected->get_text(0));
 		}
